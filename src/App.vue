@@ -22,7 +22,56 @@
 
     <!-- 核心卡片 -->
     <main class="glass-card input-group">
-      <div v-if="!result" class="divination-setup">
+      <div class="card-tabs">
+        <button class="tab-btn" :class="{ active: !showHistory }" @click="showHistory = false">
+          制作表情
+        </button>
+        <button class="tab-btn" :class="{ active: showHistory }" @click="showHistory = true">
+          历史记录 ({{ historyList.length }})
+        </button>
+      </div>
+
+      <div v-if="showHistory" class="history-view">
+        <div class="history-header">
+          <span>本地表情包历史记录</span>
+          <button v-if="historyList.length > 0" class="clear-all-btn" @click="clearAllHistory">清空全部</button>
+        </div>
+
+        <div v-if="historyList.length === 0" class="empty-state">
+          <p>暂无历史表情记录</p>
+        </div>
+
+        <div v-else class="history-grid">
+          <div v-for="item in historyList" :key="item.id" class="history-card">
+            <div class="h-card-header">
+              <span class="h-card-style">{{ item.styleLabel }}</span>
+              <span class="h-card-time">{{ item.timestamp }}</span>
+            </div>
+            
+            <div class="h-card-body">
+              <div class="h-card-preview-img-wrapper" style="height: 160px;">
+                <img :src="item.imageUrl" alt="Preview" class="h-card-preview-img" style="object-fit: contain; background: rgba(0, 0, 0, 0.2);" />
+              </div>
+              <p class="h-card-input">
+                <span class="nature-pill" style="margin-right: 0.25rem;">{{ item.character }}</span>
+                <strong>配文：</strong>{{ item.caption }}
+              </p>
+            </div>
+
+            <div class="h-card-actions">
+              <a :href="item.imageUrl" target="_blank" download class="h-action-btn load-btn" style="text-decoration: none;">
+                查看大图
+              </a>
+              <button class="h-action-btn delete-btn" @click="deleteHistoryRecord(item.id)">
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else>
+        <div v-if="!result" class="divination-setup">
         <div class="selector-group">
           <label class="selector-label">选择表情包主角</label>
           <select v-model="inquiryCharacter" class="style-select">
@@ -98,6 +147,7 @@
       <!-- 异常提示 -->
       <div v-if="errorMsg" style="color: var(--accent-color); font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">
         {{ errorMsg }}
+      </div>
       </div>
     </main>
 
@@ -176,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import UserTicker from './components/UserTicker.vue';
 import FissionModal from './components/FissionModal.vue';
 import appConfig from './config.json';
@@ -221,6 +271,70 @@ const styleOptions = [
 
 const activeStyle = ref(styleOptions[0].value);
 
+interface HistoryItem {
+  id: string;
+  timestamp: string;
+  character: string;
+  styleLabel: string;
+  caption: string;
+  imageUrl: string;
+}
+
+const historyList = ref<HistoryItem[]>([]);
+const showHistory = ref(false);
+
+const loadHistory = () => {
+  try {
+    const raw = localStorage.getItem('bqb_history_records');
+    historyList.value = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    historyList.value = [];
+  }
+};
+
+const saveHistory = () => {
+  localStorage.setItem('bqb_history_records', JSON.stringify(historyList.value));
+};
+
+const addHistoryRecord = () => {
+  const matched = styleOptions.find(o => o.value === activeStyle.value);
+  const styleLabel = matched ? matched.label : '画面风格';
+
+  const newItem: HistoryItem = {
+    id: Date.now().toString(),
+    timestamp: new Date().toLocaleString(),
+    character: inquiryCharacter.value,
+    styleLabel,
+    caption: userInput.value,
+    imageUrl: result.value
+  };
+  historyList.value.unshift(newItem);
+  saveHistory();
+};
+
+const deleteHistoryRecord = (id: string) => {
+  historyList.value = historyList.value.filter(item => item.id !== id);
+  saveHistory();
+};
+
+const clearAllHistory = () => {
+  if (confirm('确认清空所有历史表情包吗？此操作不可恢复。')) {
+    historyList.value = [];
+    saveHistory();
+  }
+};
+
+const selectHistoryItem = (item: HistoryItem) => {
+  userInput.value = item.caption;
+  inquiryCharacter.value = item.character;
+  result.value = item.imageUrl;
+  showHistory.value = false;
+};
+
+onMounted(() => {
+  loadHistory();
+});
+
 // 判断是否达到试用限制
 const isLimitReached = computed(() => {
   const uses = parseInt(localStorage.getItem('free_uses') || '0', 10);
@@ -264,6 +378,9 @@ const handleGenerate = async () => {
       errorMsg.value = data.error;
     } else {
       result.value = data.result;
+      
+      // 自动存储到历史中
+      addHistoryRecord();
       
       // 累加免费次数
       const currentUses = parseInt(localStorage.getItem('free_uses') || '0', 10);
@@ -491,5 +608,185 @@ const resetMeme = () => {
 @keyframes bounce {
   from { transform: translateY(0); }
   to { transform: translateY(-10px); }
+}
+
+/* 历史记录选项卡 */
+.card-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 1.25rem;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+/* 历史卡片网格 */
+.history-view {
+  text-align: left;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.clear-all-btn {
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.clear-all-btn:hover {
+  opacity: 0.8;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.history-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.history-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.15);
+}
+
+.h-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.h-card-style {
+  background: rgba(168, 85, 247, 0.15);
+  color: var(--primary-color);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.h-card-time {
+  color: var(--text-secondary);
+}
+
+.h-card-body {
+  flex: 1;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.h-card-input {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin: 0;
+}
+
+.nature-pill {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.h-card-preview-img-wrapper {
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.h-card-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.h-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 0.75rem;
+}
+
+.h-action-btn {
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.load-btn {
+  color: var(--primary-color);
+}
+
+.load-btn:hover {
+  color: var(--primary-hover);
+}
+
+.delete-btn {
+  color: var(--accent-color);
+}
+
+.delete-btn:hover {
+  color: #ef4444;
 }
 </style>
