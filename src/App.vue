@@ -212,8 +212,8 @@ import FissionModal from './components/FissionModal.vue';
 import DemoShowcase from './components/DemoShowcase.vue';
 import ShareCardModal from './components/ShareCardModal.vue';
 import appConfig from './config.json';
-import weixinImg from '../asset/weixin.png';
-import dingtalkImg from '../asset/dingtalk.png';
+const weixinImg = 'https://ai.wuxian.xyz/assets/weixin.png';
+const dingtalkImg = 'https://ai.wuxian.xyz/assets/dingtalk.png';
 
 const appTitle = ref(appConfig.title || '网腾无限AI 表情包生成器');
 const wechatId = ref(appConfig.wechatId || 'ai_wuxian_xyz');
