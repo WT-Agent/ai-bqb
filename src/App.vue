@@ -1,64 +1,30 @@
 <template>
   <div class="app-container">
-    <!-- 顶部生成成功浮动 Toast -->
-    <transition name="fade">
-      <div v-if="showSuccessToast" class="top-success-toast">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        <span>创意表情包图片生成成功！</span>
-      </div>
-    </transition>
-
-    <!-- 右上角常驻分享按钮 -->
-    <button class="floating-share-btn" @click="showShareGuide = true">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="share-icon">
-        <circle cx="18" cy="5" r="3"></circle>
-        <circle cx="6" cy="12" r="3"></circle>
-        <circle cx="18" cy="19" r="3"></circle>
-        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-      </svg>
-      <span>分享</span>
-    </button>
-
-    <!-- 顶部 App Header (已移除未登录额度提示栏) -->
     <header>
+      <div class="user-status-bar" style="margin-bottom: 0.75rem; font-size: 0.8rem; text-align: center;">
+        <span v-if="isLoggedIn" class="status-badge logged-in" style="background: rgba(192, 132, 252, 0.15); color: #c084fc; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(192, 132, 252, 0.3);">
+          已登录 (每日 15 次额度 · 今日已用: {{ authUsesCount }}/15)
+        </span>
+      </div>
       <h1>{{ appTitle }}</h1>
-      <p>智能 AI 体验引擎 · 自定义主角与四种特色画风生图</p>
+      <p>智能 AI 实战引擎 · 解决高效生产力需求</p>
     </header>
 
-    <!-- 活跃动态与使用人数轮播 -->
+    <!-- 活跃动态 -->
     <UserTicker />
 
-    <!-- 核心输入与生成卡片 (模块一：一键体验) -->
-    <main class="glass-card input-group">
+    <!-- 核心卡片 -->
+    <main ref="inputCardRef" class="glass-card input-group">
       <div class="selector-group">
-        <label class="selector-label">输入表情包文字或搞笑文案</label>
+        <label class="selector-label">输入您要生成的内容或要求</label>
         <textarea 
           v-model="userInput" 
-          placeholder="比如：又到了打工人最喜欢的星期五！发射火箭去火星开会，有事留言..."
-          rows="4"
+          placeholder="比如：帮我写一段表达工作辛苦但充满希望的总结..."
         ></textarea>
       </div>
 
       <div class="selector-group">
-        <label class="selector-label">选择表情包主角角色</label>
-        <div class="role-selector">
-          <button 
-            v-for="role in roleOptions" 
-            :key="role.value"
-            class="role-option"
-            :class="{ active: activeRole === role.value }"
-            @click="activeRole = role.value"
-          >
-            {{ role.label }}
-          </button>
-        </div>
-      </div>
-
-      <div class="selector-group">
-        <label class="selector-label">选择表情包画面画风</label>
+        <label class="selector-label">选择生成风格</label>
         <div class="style-selector">
           <button 
             v-for="style in styleOptions" 
@@ -77,30 +43,24 @@
         :disabled="loading || !userInput.trim()"
         @click="handleGenerate"
       >
-        {{ loading ? '正在由 AI 大模型绘制表情包中...' : '开始一键生成表情包' }}
+        {{ loading ? '正在飞速生成中...' : '开始一键生成' }}
       </button>
 
       <!-- 异常提示 -->
-      <div v-if="errorMsg" class="error-banner">
+      <div v-if="errorMsg" style="color: var(--accent-color); font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">
         {{ errorMsg }}
       </div>
     </main>
 
-    <!-- 生成结果卡片 (模块二：内容产出与分享) -->
-    <section v-if="result || loading" class="glass-card result-section">
+    <!-- 生成结果卡片 -->
+    <section v-if="result || loading" class="glass-card">
       <div class="result-header">
-        <div class="result-title-group">
-          <span class="result-title">生成结果</span>
-          <span v-if="result" class="success-badge">生成成功</span>
-        </div>
+        <span class="result-title">生成结果</span>
         <div class="button-actions">
           <button v-if="result && !isImageProject" class="icon-btn" @click="copyText">
             {{ copied ? '已复制' : '复制文案' }}
           </button>
-          <button v-if="result" class="icon-btn highlight" @click="showShareCard = true">
-            生成分享卡片
-          </button>
-          <a v-if="result && isImageProject" :href="result" target="_blank" download="ai-meme.png" class="icon-btn" style="text-decoration: none;">
+          <a v-if="result && isImageProject" :href="result" target="_blank" download class="icon-btn" style="text-decoration: none;">
             查看原图
           </a>
         </div>
@@ -111,7 +71,6 @@
         <div class="skeleton-line" style="width: 80%"></div>
         <div class="skeleton-line" style="width: 95%"></div>
         <div class="skeleton-line" style="width: 60%"></div>
-        <div class="skeleton-line" style="width: 75%"></div>
       </div>
 
       <!-- 渲染结果 -->
@@ -121,14 +80,21 @@
       </div>
     </section>
 
-    <!-- 演示案例区组件 (模块三：30 条表情包精选案例展示) -->
-    <DemoShowcase @use-sample="handleUseSample" />
+    <!-- PC端 Nomads 案例与模版展示 -->
+    <NomadsShowcase
+      :app-title="appTitle"
+      :is-image="isImageProject"
+      @apply-template="handleApplyTemplate"
+    />
 
     <!-- 底部隐私与服务条款链接 -->
     <footer class="footer-links">
       <button class="footer-link-btn" @click="showPrivacy = true">Privacy Policy</button>
       <button class="footer-link-btn" @click="showTerms = true">Terms of Service</button>
       <button class="footer-link-btn" @click="showContact = true">Contact Us</button>
+      <a href="https://api.wuxian.xyz/sign-up?aff=OyRY" target="_blank" rel="noopener noreferrer" class="footer-link-btn">API 平台</a>
+      <a href="https://www.kutuyun.com/aff/IPJKCKWF" target="_blank" rel="noopener noreferrer" class="footer-link-btn">酷兔云</a>
+      <a href="https://bandwagonhost.com/aff.php?aff=48115" target="_blank" rel="noopener noreferrer" class="footer-link-btn">搬瓦工</a>
     </footer>
 
     <!-- 隐私政策弹窗 -->
@@ -136,7 +102,7 @@
       <div class="modal-content">
         <h3>Privacy Policy</h3>
         <div class="modal-text-content modal-scroll-area">
-          <p>我们非常重视您的隐私。您在本应用中输入的配文与角色选择仅用于实时大模型生图，我们不会在服务器端进行永久存储或记录。</p>
+          <p>我们非常重视您的隐私。您在本应用中输入的所有文本或图像提示词仅用于实时大模型生成，我们不会在服务器端进行永久存储或记录。</p>
           <p>为了记录您的免费额度，本应用会在您的浏览器本地（localStorage）记录试用次数与解锁状态。</p>
         </div>
         <button class="modal-btn" @click="showPrivacy = false">关闭</button>
@@ -148,14 +114,14 @@
       <div class="modal-content">
         <h3>Terms of Service</h3>
         <div class="modal-text-content modal-scroll-area">
-          <p>欢迎使用我们的 AI 表情包生成器微应用。本应用仅用于创意娱乐、社交玩梗与插画设计展示。</p>
-          <p>请确保输入的配文符合法律法规与社会公序良俗，生成图片版权遵循大模型平台协议。</p>
+          <p>欢迎使用我们的 AI 微应用服务。使用本应用即代表您同意并承诺遵守当地有关人工智能生成内容（AIGC）的法律法规。</p>
+          <p>所有生成结果均由 AI 模型计算产生，本应用不对生成内容的准确性、完整性及合法性承担任何直接或间接法律责任。</p>
         </div>
         <button class="modal-btn" @click="showTerms = false">关闭</button>
       </div>
     </div>
 
-    <!-- 联系我们弹窗 (自适应高度 + weixin.png & dingtalk.png 展示) -->
+    <!-- 联系我们弹窗 -->
     <div v-if="showContact" class="modal-overlay" @click.self="showContact = false">
       <div class="modal-content contact-modal-content">
         <h3>Contact Us</h3>
@@ -163,12 +129,12 @@
           <p>如果您在使用过程中遇到任何问题，或有合作意向，可以通过以下方式联系我们：</p>
           <div class="contact-qr-container">
             <div class="contact-qr-card">
-              <img :src="weixinImg" alt="微信联系" class="contact-qr-img" />
-              <span class="contact-qr-label">微信联系</span>
+              <img :src="weixinImg" alt="微信交流" class="contact-qr-img" />
+              <span class="contact-qr-label">微信交流</span>
             </div>
             <div class="contact-qr-card">
-              <img :src="dingtalkImg" alt="钉钉交流" class="contact-qr-img" />
-              <span class="contact-qr-label">钉钉交流</span>
+              <img :src="dingtalkImg" alt="钉钉联系" class="contact-qr-img" />
+              <span class="contact-qr-label">钉钉联系</span>
             </div>
           </div>
           <p class="contact-email">反馈邮箱: <span style="color: var(--primary-color);">us@wuxian.xyz</span></p>
@@ -177,31 +143,12 @@
       </div>
     </div>
 
-    <!-- 裂变拦截弹窗 (模块四：裂变机制) -->
+    <!-- 裂变拦截弹窗 -->
     <FissionModal 
       :visible="showFission" 
       :wechat-id="wechatId"
       @unlocked="handleUnlocked"
     />
-
-    <!-- 分享卡片弹窗 (模块二扩展) -->
-    <ShareCardModal
-      :visible="showShareCard"
-      :image-url="result"
-      :caption="userInput"
-      :wechat-id="wechatId"
-      @close="showShareCard = false"
-    />
-
-    <!-- 微信 H5 分享引导浮层 -->
-    <div v-if="showShareGuide" class="share-guide-overlay" @click="handleShareClose">
-      <div class="share-guide-arrow">↗</div>
-      <div class="share-guide-content">
-        <p>点击右上角菜单 <strong>•••</strong></p>
-        <p>选择 <strong>「分享到朋友圈」</strong></p>
-        <p class="share-guide-sub">分享这款高效率的 AI 智能微应用</p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -209,33 +156,28 @@
 import { ref, computed } from 'vue';
 import UserTicker from './components/UserTicker.vue';
 import FissionModal from './components/FissionModal.vue';
-import DemoShowcase from './components/DemoShowcase.vue';
-import ShareCardModal from './components/ShareCardModal.vue';
+import NomadsShowcase from './components/NomadsShowcase.vue';
 import appConfig from './config.json';
-const weixinImg = 'https://ai.wuxian.xyz/assets/weixin.png';
-const dingtalkImg = 'https://ai.wuxian.xyz/assets/dingtalk.png';
+import weixinImg from '../asset/weixin.png';
+import dingtalkImg from '../asset/dingtalk.png';
 
-const appTitle = ref(appConfig.title || '网腾无限AI 表情包生成器');
+// 读取动态配置文件配置
+const appTitle = ref(appConfig.title || 'AI微应用');
 const wechatId = ref(appConfig.wechatId || 'ai_wuxian_xyz');
+const promptTopic = ref(appConfig.promptTopic || '');
 
+const inputCardRef = ref<HTMLElement | null>(null);
 const userInput = ref('');
 const loading = ref(false);
 const errorMsg = ref('');
 const result = ref('');
 const copied = ref(false);
-const showSuccessToast = ref(false);
 const showFission = ref(false);
 const showPrivacy = ref(false);
 const showTerms = ref(false);
 const showContact = ref(false);
-const showShareGuide = ref(false);
-const showShareCard = ref(false);
 
-const handleShareClose = () => {
-  showShareGuide.value = false;
-  localStorage.setItem('shared_fission', 'true');
-};
-
+// 解析 Cookie 辅助函数
 const getCookie = (name: string): string | null => {
   const nameEQ = name + "=";
   const ca = document.cookie.split(';');
@@ -247,38 +189,38 @@ const getCookie = (name: string): string | null => {
   return null;
 };
 
+// SSO 用户状态
 const userToken = ref(getCookie('wuxian_session'));
 const isLoggedIn = computed(() => !!userToken.value);
 const authUsesCount = ref(parseInt(localStorage.getItem('auth_uses') || '0', 10));
 
+// 判断当前项目是文本类还是图像/多模态类
 const isImageProject = computed(() => {
-  return appConfig.type === 'image' || true;
+  return appConfig.type === 'image';
 });
 
-// 表情包角色选项
-const roleOptions = [
-  { label: '经典熊猫头', value: '经典熊猫头搞笑包子脸' },
-  { label: '马斯克', value: '马斯克 (Elon Musk) 搞怪表情' },
-  { label: '乔布斯', value: '乔布斯 (Steve Jobs) 极简风格' },
-  { label: '比尔盖茨', value: '比尔盖茨 (Bill Gates) 怀旧风格' },
-  { label: '扎克伯格', value: '扎克伯格 (Mark Zuckerberg) 赛博风格' },
-  { label: '贝索斯', value: '贝索斯 (Jeff Bezos) 霸气快递风格' },
-  { label: '柏拉图', value: '柏拉图 (Plato) 理想国雕像风格' },
-  { label: '爱因斯坦', value: '爱因斯坦 (Einstein) 吐舌头疯狂科学家' },
-  { label: '特斯拉', value: '尼古拉·特斯拉 (Tesla) 闪电朋克' },
-  { label: '秦始皇', value: '秦始皇霸气帝王风格' },
-];
-const activeRole = ref(roleOptions[0].value);
+// 根据生成类别提供不同的风格预设
+const styleOptions = computed(() => {
+  if (isImageProject.value) {
+    return [
+      { label: '写真照片', value: '<photography>' },
+      { label: '卡通动漫', value: '<anime>' },
+      { label: '水彩画卷', value: '<watercolor>' },
+      { label: '插画艺术', value: '<illustration>' },
+    ];
+  } else {
+    return [
+      { label: '专业干练', value: '专业干练，结果导向' },
+      { label: '高情商说辞', value: '高情商，委婉，有情调' },
+      { label: '幽默风趣', value: '幽默风趣，形象生动' },
+      { label: '严谨学术', value: '严谨学术，条理清晰' },
+    ];
+  }
+});
 
-// 表情包画面画风选项
-const styleOptions = [
-  { label: '经典黑白线条画', value: '经典黑白素描简笔线条画表情包' },
-  { label: '写实搞怪大头贴', value: '夸张滑稽写实大头贴质感表情包' },
-  { label: '3D粘土卡通', value: '色彩绚丽的3D粘土卡通公仔极具微距感' },
-  { label: '复古8位像素', value: '8位复古红白机像素艺术画风' },
-];
-const activeStyle = ref(styleOptions[0].value);
+const activeStyle = ref(styleOptions.value[0].value);
 
+// 判断是否达到免费次数上限
 const isLimitReached = computed(() => {
   if (isLoggedIn.value) {
     return authUsesCount.value >= 15;
@@ -288,16 +230,10 @@ const isLimitReached = computed(() => {
   return uses >= 3 && !shared;
 });
 
+// 获取 API 请求端点
 const apiEndpoint = import.meta.env.DEV
   ? '/api/local/generate'
   : (import.meta.env.VITE_API_ENDPOINT || 'https://api.wuxian.xyz/api/v1/generate');
-
-const triggerSuccessToast = () => {
-  showSuccessToast.value = true;
-  setTimeout(() => {
-    showSuccessToast.value = false;
-  }, 3000);
-};
 
 const handleGenerate = async () => {
   if (isLimitReached.value) {
@@ -310,8 +246,6 @@ const handleGenerate = async () => {
   result.value = '';
 
   try {
-    const fullPrompt = `请生成一张高清搞笑社交表情包。表情包主角角色：${activeRole.value}。表情包画面风格：${activeStyle.value}。表情包配文与画面主题：“${userInput.value}”。画面必须生动幽默，适合微信聊天梗图。`;
-
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -319,8 +253,8 @@ const handleGenerate = async () => {
       },
       credentials: 'include',
       body: JSON.stringify({
-        taskType: 'image',
-        prompt: fullPrompt,
+        taskType: isImageProject.value ? 'image' : 'text',
+        prompt: `类型：${promptTopic.value}，要求：${userInput.value}，风格倾向：${activeStyle.value}`,
         style: activeStyle.value
       })
     });
@@ -330,7 +264,6 @@ const handleGenerate = async () => {
       errorMsg.value = data.error;
     } else {
       result.value = data.result;
-      triggerSuccessToast();
       
       if (isLoggedIn.value) {
         const nextAuthUses = authUsesCount.value + 1;
@@ -342,15 +275,20 @@ const handleGenerate = async () => {
       }
     }
   } catch (err: any) {
-    errorMsg.value = '生图接口失败，请检查网络或本地代理服务。';
+    errorMsg.value = '请求接口失败，请检查网络或本地代理服务。';
   } finally {
     loading.value = false;
   }
 };
 
-const handleUseSample = (sampleCaption: string) => {
-  userInput.value = sampleCaption;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+const handleApplyTemplate = (payload: { prompt: string; style?: string }) => {
+  userInput.value = payload.prompt;
+  if (payload.style) {
+    activeStyle.value = payload.style;
+  }
+  if (inputCardRef.value) {
+    inputCardRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 };
 
 const handleUnlocked = () => {
@@ -360,7 +298,7 @@ const handleUnlocked = () => {
 
 const copyText = async () => {
   try {
-    await navigator.clipboard.writeText(userInput.value);
+    await navigator.clipboard.writeText(result.value);
     copied.value = true;
     setTimeout(() => {
       copied.value = false;
