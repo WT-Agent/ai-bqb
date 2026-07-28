@@ -7,3 +7,5 @@ dist
 *.user
 *.lock
 pnpm-lock.yaml
+
+.vercel
