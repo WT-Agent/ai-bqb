@@ -2,23 +2,24 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content share-modal-content">
       <div class="modal-header">
-        <h3>表情包创意卡片</h3>
+        <h3>分享卡片生成</h3>
         <button class="close-icon-btn" @click="$emit('close')">×</button>
       </div>
 
-      <!-- 玻璃拟态分享卡片区域 (可截图或下载) -->
+      <!-- 玻璃拟态分享卡片实体区域 (可通过 H5 长按或截图保存) -->
       <div id="share-card-node" class="share-card-wrapper">
         <div class="share-card-header">
           <div class="share-brand">
             <span class="brand-logo-dot"></span>
             <span class="brand-title">网腾无限AI</span>
           </div>
-          <span class="share-tag">表情包生成器</span>
+          <span class="share-tag">爆款文案二创</span>
         </div>
 
-        <div class="share-card-body image-card-body">
-          <img v-if="imageUrl" :src="imageUrl" alt="AI 表情包图片" class="share-meme-img" />
-          <div v-if="caption" class="share-meme-caption">“{{ caption }}”</div>
+        <div class="share-card-body">
+          <div class="share-quote-symbol">“</div>
+          <div class="share-result-text">{{ content }}</div>
+          <div class="share-quote-symbol end">”</div>
         </div>
 
         <div class="share-card-footer">
@@ -33,21 +34,21 @@
               </svg>
             </div>
             <div class="share-tip-text">
-              <span class="primary">扫码体验 AI 表情包创意生成</span>
+              <span class="primary">扫码解锁无限创作灵感</span>
               <span class="sub">ai.wuxian.xyz · 微信公众号：{{ wechatId }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 操作按钮 -->
+      <!-- 操作与提示 -->
       <div class="share-actions">
-        <p class="share-guide-tip">微信 H5 环境下可长按图片保存，或直接截图保存此卡片到相册</p>
+        <p class="share-guide-tip">微信 H5 环境下可点击下方按钮复制，或直接截图保存此精美卡片到相册</p>
         <div class="share-btn-group">
           <button class="modal-btn secondary" @click="$emit('close')">关闭</button>
-          <a v-if="imageUrl" :href="imageUrl" download="ai-meme.png" target="_blank" class="modal-btn primary-link">
-            下载原图表情包
-          </a>
+          <button class="modal-btn primary" @click="handleCopy">
+            {{ copied ? '卡片文案已复制' : '复制卡片全文本' }}
+          </button>
         </div>
       </div>
     </div>
@@ -55,14 +56,30 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { ref } from 'vue';
+
+const props = defineProps<{
   visible: boolean;
-  imageUrl: string;
-  caption: string;
+  content: string;
   wechatId: string;
 }>();
 
 defineEmits<{
   (e: 'close'): void;
 }>();
+
+const copied = ref(false);
+
+const handleCopy = async () => {
+  try {
+    const textToCopy = `【网腾无限AI - 爆款文案二创】\n\n${props.content}\n\n体验更多 AI 灵感微应用：https://ai.wuxian.xyz`;
+    await navigator.clipboard.writeText(textToCopy);
+    copied.value = true;
+    setTimeout(() => {
+      copied.value = false;
+    }, 2000);
+  } catch (err) {
+    console.error('复制失败', err);
+  }
+};
 </script>

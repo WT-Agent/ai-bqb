@@ -120,7 +120,7 @@
       </div>
     </div>
 
-    <!-- 联系我们弹窗 -->
+<!-- 联系我们弹窗 -->
     <div v-if="showContact" class="modal-overlay" @click.self="showContact = false">
       <div class="modal-content contact-modal-content">
         <h3>Contact Us</h3>
@@ -152,13 +152,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import UserTicker from './components/UserTicker.vue';
 import FissionModal from './components/FissionModal.vue';
 import NomadsShowcase from './components/NomadsShowcase.vue';
 import appConfig from './config.json';
 import weixinImg from '../asset/weixin.png';
 import dingtalkImg from '../asset/dingtalk.png';
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem('portal_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+});
 
 // 读取动态配置文件配置
 const appTitle = ref(appConfig.title || 'AI微应用');
